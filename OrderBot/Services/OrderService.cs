@@ -39,6 +39,11 @@ namespace OrderBot.Services
             InsertOrderEvent(orderEvent);
         }
 
+        public void MakeOrderRequest(OrderRequest orderRequest) {
+            JsonLog.Log(orderRequest);
+            InsertOrderRequest(orderRequest);
+        }
+
         public OrderEvent QueryLatestActiveEventByGroupId(string groupId) {
             if (string.IsNullOrWhiteSpace(groupId))
             {
@@ -53,5 +58,19 @@ namespace OrderBot.Services
 
             return latestOrderEvent;
         }
+        public OrderEvent QueryOrderEventById(string id)
+        {
+            if (string.IsNullOrWhiteSpace(id))
+            {
+                Console.WriteLine("Id 不能為空");
+                return null;
+            };
+
+            var orderEvent = _context.OrderEvent
+                .FirstOrDefault(e => e.Id == id);
+
+            return orderEvent;
+        }
+
     }
 }

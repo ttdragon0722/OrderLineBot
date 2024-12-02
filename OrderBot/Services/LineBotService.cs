@@ -72,21 +72,90 @@ namespace OrderBot.Services
                                                 Status = Status.Active,
                                                 LastUpdate = ConvertUnixTimestampToDateTime(eventObject.Timestamp)
                                             });
-                                            var replyMessage = new ReplyMessageRequestDto<TextMessageDto>()
+                                            var successReply = new ReplyMessageRequestDto<TextMessageDto>()
                                             {
                                                 ReplyToken = eventObject.ReplyToken,
                                                 Messages = new List<TextMessageDto>
-                                            {
-                                                new TextMessageDto(){Text = $"開單成功"}
-                                            }
+                                                {
+                                                    new TextMessageDto(){Text = $"開單成功"}
+                                                }
                                             };
-                                            ReplyMessageHandler("text", replyMessage);
+                                            ReplyMessageHandler("text", successReply);
+                                        } else {
+                                            var errorReply = new ReplyMessageRequestDto<TextMessageDto>()
+                                            {
+                                                ReplyToken = eventObject.ReplyToken,
+                                                Messages = new List<TextMessageDto>
+                                                {
+                                                    new TextMessageDto(){Text = $"開單錯誤\n---請確認指令是否正確。\n開單 <產品:必填> <金額:選填>"}
+                                                }
+                                            };
+                                            ReplyMessageHandler("text", errorReply);
                                         }
                                         break;
-
-
                                     case "訂購":
-                                        Console.WriteLine(_orderService.QueryLatestActiveEventByGroupId(eventObject.Source.GroupId));
+                                        // 是否有指定回覆訊息
+                                        if (eventObject.Message?.QuotedMessageId != null) {
+                                            var selectEvent = _orderService.QueryOrderEventById(eventObject.Message.QuotedMessageId);
+                                            JsonLog.Log(selectEvent);
+                                            var newRequest = new OrderRequest()
+                                            {
+                                                Id = eventObject.Message.Id,
+                                                Timestamp = ConvertUnixTimestampToDateTime(eventObject.Timestamp),
+                                                UserId = eventObject.Source.UserId,
+                                                QuoteId = selectEvent.Id,
+                                                Amount = int.Parse(parameters["數量"]),
+                                                Status = Status.Active,
+                                                LastUpdate = ConvertUnixTimestampToDateTime(eventObject.Timestamp)
+                                            };
+                                            _orderService.MakeOrderRequest(newRequest);
+                                            var selectReply = new ReplyMessageRequestDto<QuoteMessageDto>()
+                                            {
+                                                ReplyToken = eventObject.ReplyToken,
+                                                Messages = new List<QuoteMessageDto>
+                                                {
+                                                    new QuoteMessageDto(){
+                                                        Text = $"成功訂購 {selectEvent.Product} x{parameters["數量"]}" ,
+                                                        QuoteToken = selectEvent.QuoteToken,
+                                                    }
+                                                }
+                                            };
+                                            ReplyMessageHandler("text", selectReply);
+                                        } else
+                                        {
+                                            var latestActiveEvent = _orderService.QueryLatestActiveEventByGroupId(eventObject.Source.GroupId);
+                                            var newRequest = new OrderRequest()
+                                            {
+                                                Id = eventObject.Message.Id,
+                                                Timestamp = ConvertUnixTimestampToDateTime(eventObject.Timestamp),
+                                                UserId = eventObject.Source.UserId,
+                                                QuoteId = latestActiveEvent.Id,
+                                                Amount = int.Parse(parameters["數量"]),
+                                                Status = Status.Active,
+                                                LastUpdate = ConvertUnixTimestampToDateTime(eventObject.Timestamp)
+                                            };
+                                            _orderService.MakeOrderRequest(newRequest);
+                                            var latestReply = new ReplyMessageRequestDto<TextMessageDto>()
+                                            {
+                                                ReplyToken = eventObject.ReplyToken,
+                                                Messages = new List<TextMessageDto>
+                                                {
+                                                    new TextMessageDto(){Text = $"成功訂購 {latestActiveEvent.Product} x{parameters["數量"]}"}
+                                                }
+                                            };
+                                            ReplyMessageHandler("text", latestReply);
+                                        }
+                                        break;
+                                    case "幫助":
+                                        var replyMessage = new ReplyMessageRequestDto<TextMessageDto>()
+                                            {
+                                                ReplyToken = eventObject.ReplyToken,
+                                                Messages = new List<TextMessageDto>
+                                                {
+                                                    new TextMessageDto(){Text = $"指令列表：\n- 幫助\n- 開單 <產品:必填> <金額:選填>\n- 結單"}
+                                                }
+                                            };
+                                            ReplyMessageHandler("text", replyMessage);
                                         break;
                                 }
                             }
