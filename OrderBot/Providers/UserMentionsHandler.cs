@@ -1,11 +1,11 @@
-﻿using Newtonsoft.Json;
+﻿using System.Text;
 
 namespace OrderBot.Providers
 {
-    public class Mention(string name, string userId)
+    public class Mention(string userId, int amount)
     {
-        public string Name { get; set; } = name;
         public string UserId { get; set; } = userId;
+        public int? Amount { get; set; } = amount;
     }
 
     public class UserMentionsHandler
@@ -18,9 +18,9 @@ namespace OrderBot.Providers
         }
 
         // 新增一個 Mention
-        public void AddMention(string name, string userId)
+        public void AddMention(string userId, int amount)
         {
-            _users.Add(new Mention(name, userId));
+            _users.Add(new Mention(userId, amount));
         }
 
         // 清空 Mention
@@ -30,24 +30,48 @@ namespace OrderBot.Providers
         }
 
         // 生成 JSON 字串
-        public string Mention()
+        public Dictionary<string, object> Mention()
         {
             var result = new Dictionary<string, object>();
 
-            foreach (var user in _users)
+            for (int i = 0; i < _users.Count; i++)
             {
-                result[user.Name] = new
+                var key = $"user{i}"; // 使用索引值作為名稱，例如 user0, user1, user2
+                result[key] = new
                 {
                     type = "mention",
                     mentionee = new
                     {
                         type = "user",
-                        userId = user.UserId
+                        userId = _users[i].UserId
                     }
                 };
             }
 
-            return JsonConvert.SerializeObject(result, Formatting.Indented);
+            return result;
         }
+        public string String()
+        {
+            if (_users == null || !_users.Any())
+            {
+                Console.WriteLine("無使用者資料");
+                return string.Empty;
+            }
+
+            var builder = new StringBuilder();
+
+            for (int i = 0; i < _users.Count; i++)
+            {
+                builder.Append($"{{user{i}}} x{_users[i].Amount}");
+                if (i < _users.Count - 1)
+                {
+                    builder.AppendLine();
+                }
+            }
+
+            return builder.ToString();
+        }
+
+
     }
 }

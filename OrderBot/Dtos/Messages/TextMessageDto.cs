@@ -9,7 +9,7 @@ namespace OrderBot.Dtos
             Type = MessageTypeEnum.Text;
         }
         public string Text { get; set; } = string.Empty;
-        
+        public Dictionary<string, object> Substitution { get; set; }
     }
 
     public class TextV2MessageDto : TextMessageDto
@@ -19,7 +19,7 @@ namespace OrderBot.Dtos
             Type = MessageTypeEnum.TextV2;
         }
         public string? QuoteToken { get; set; } = string.Empty;
-        public SubstitutionDto? Substitution { get; set; }
+        public Dictionary<string, object>? Substitution { get; set; }
     }
 
     public class QuoteMessageDto : TextMessageDto

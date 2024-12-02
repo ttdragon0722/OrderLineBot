@@ -6,6 +6,9 @@ using OrderBot.Enum;
 using System.Text;
 using OrderBot.Models;
 using Microsoft.IdentityModel.Tokens;
+using OrderBot.Utils;
+using Newtonsoft.Json;
+using Microsoft.AspNetCore.Http.Features;
 
 namespace OrderBot.Services
 {
@@ -48,7 +51,7 @@ namespace OrderBot.Services
                     {
                         case WebhookEventTypeEnum.Message:
                             Console.WriteLine("收到使用者傳送訊息！");
-                            if (eventObject.Message.Type == "text")
+                            if ( eventObject.Message.Type == "text")
                             {
                                 Console.WriteLine(eventObject.Message.Text);
                                 Console.WriteLine(eventObject.ReplyToken);
@@ -63,14 +66,14 @@ namespace OrderBot.Services
                                             _orderService.MakeOrderEvent(new OrderEvent()
                                             {
                                                 Id = eventObject.Message.Id,
-                                                Timestamp = ConvertUnixTimestampToDateTime(eventObject.Timestamp),
+                                                Timestamp = Support.Timestamp2DateTime(eventObject.Timestamp),
                                                 Product = parameters["產品"],
                                                 Price = parameters["金額"],
                                                 GroupId = eventObject.Source.GroupId,
                                                 UserId = eventObject.Source.UserId,
                                                 QuoteToken = eventObject.Message.QuoteToken,
                                                 Status = Status.Active,
-                                                LastUpdate = ConvertUnixTimestampToDateTime(eventObject.Timestamp)
+                                                LastUpdate = Support.Timestamp2DateTime(eventObject.Timestamp)
                                             });
                                             var successReply = new ReplyMessageRequestDto<TextMessageDto>()
                                             {
@@ -101,12 +104,12 @@ namespace OrderBot.Services
                                             var newRequest = new OrderRequest()
                                             {
                                                 Id = eventObject.Message.Id,
-                                                Timestamp = ConvertUnixTimestampToDateTime(eventObject.Timestamp),
+                                                Timestamp = Support.Timestamp2DateTime(eventObject.Timestamp),
                                                 UserId = eventObject.Source.UserId,
                                                 QuoteId = selectEvent.Id,
                                                 Amount = int.Parse(parameters["數量"]),
                                                 Status = Status.Active,
-                                                LastUpdate = ConvertUnixTimestampToDateTime(eventObject.Timestamp)
+                                                LastUpdate = Support.Timestamp2DateTime(eventObject.Timestamp)
                                             };
                                             _orderService.MakeOrderRequest(newRequest);
                                             var selectReply = new ReplyMessageRequestDto<QuoteMessageDto>()
@@ -127,17 +130,18 @@ namespace OrderBot.Services
                                             var newRequest = new OrderRequest()
                                             {
                                                 Id = eventObject.Message.Id,
-                                                Timestamp = ConvertUnixTimestampToDateTime(eventObject.Timestamp),
+                                                Timestamp = Support.Timestamp2DateTime(eventObject.Timestamp),
                                                 UserId = eventObject.Source.UserId,
                                                 QuoteId = latestActiveEvent.Id,
                                                 Amount = int.Parse(parameters["數量"]),
                                                 Status = Status.Active,
-                                                LastUpdate = ConvertUnixTimestampToDateTime(eventObject.Timestamp)
+                                                LastUpdate = Support.Timestamp2DateTime(eventObject.Timestamp)
                                             };
                                             _orderService.MakeOrderRequest(newRequest);
                                             var latestReply = new ReplyMessageRequestDto<TextMessageDto>()
                                             {
                                                 ReplyToken = eventObject.ReplyToken,
+                                                NotificationDisabled = true,
                                                 Messages = new List<TextMessageDto>
                                                 {
                                                     new TextMessageDto(){Text = $"成功訂購 {latestActiveEvent.Product} x{parameters["數量"]}"}
@@ -150,12 +154,48 @@ namespace OrderBot.Services
                                         var replyMessage = new ReplyMessageRequestDto<TextMessageDto>()
                                             {
                                                 ReplyToken = eventObject.ReplyToken,
+                                                NotificationDisabled = true,
                                                 Messages = new List<TextMessageDto>
                                                 {
                                                     new TextMessageDto(){Text = $"指令列表：\n- 幫助\n- 開單 <產品:必填> <金額:選填>\n- 結單"}
                                                 }
                                             };
                                             ReplyMessageHandler("text", replyMessage);
+                                        break;
+                                    case "結單":
+                                        OrderEvent? finishedOrder;
+                                        if (eventObject.Message?.QuotedMessageId != null) {
+                                            finishedOrder = _orderService.SelectEventFinished(eventObject.Message.QuotedMessageId,eventObject.Timestamp);
+
+                                        } else {
+                                            finishedOrder = _orderService.LatestEventFinished(eventObject.Source.GroupId,eventObject.Timestamp);
+                                        }
+                                        if (finishedOrder != null) {
+                                            JsonLog.Log(finishedOrder);
+                                            var userAndAmount = _orderService.GetGroupedActiveOrderRequestsByQuoteId(finishedOrder.Id);
+
+                                            var handler = new UserMentionsHandler();
+                                            foreach (var (UserId, TotalAmount) in userAndAmount)
+                                            {
+                                                handler.AddMention(UserId,TotalAmount);
+                                            }
+                                            var finishedReply = new ReplyMessageRequestDto<TextMessageDto>()
+                                            {
+                                                ReplyToken = eventObject.ReplyToken,
+                                                Messages = new List<TextMessageDto>
+                                                {
+                                                    new QuoteMessageDto(){
+                                                        Type =  MessageTypeEnum.TextV2,
+                                                        Text = $"結單：{finishedOrder.Product}\n價格：{finishedOrder.Price}\n{handler.String()}",
+                                                        QuoteToken = finishedOrder.QuoteToken,
+                                                        Substitution = handler.Mention()
+                                                    }
+                                                }
+                                            };
+                                            
+                                            ReplyMessageHandler("textV2", finishedReply);
+                                        }
+
                                         break;
                                 }
                             }
