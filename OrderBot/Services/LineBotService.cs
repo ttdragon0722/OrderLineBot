@@ -51,7 +51,7 @@ namespace OrderBot.Services
                     {
                         case WebhookEventTypeEnum.Message:
                             Console.WriteLine("收到使用者傳送訊息！");
-                            if ( eventObject.Message.Type == "text")
+                            if (eventObject.Message.Type == "text")
                             {
                                 Console.WriteLine(eventObject.Message.Text);
                                 Console.WriteLine(eventObject.ReplyToken);
@@ -84,7 +84,9 @@ namespace OrderBot.Services
                                                 }
                                             };
                                             ReplyMessageHandler("text", successReply);
-                                        } else {
+                                        }
+                                        else
+                                        {
                                             var errorReply = new ReplyMessageRequestDto<TextMessageDto>()
                                             {
                                                 ReplyToken = eventObject.ReplyToken,
@@ -98,7 +100,8 @@ namespace OrderBot.Services
                                         break;
                                     case "訂購":
                                         // 是否有指定回覆訊息
-                                        if (eventObject.Message?.QuotedMessageId != null) {
+                                        if (eventObject.Message?.QuotedMessageId != null)
+                                        {
                                             var selectEvent = _orderService.QueryOrderEventById(eventObject.Message.QuotedMessageId);
                                             JsonLog.Log(selectEvent);
                                             var newRequest = new OrderRequest()
@@ -124,7 +127,8 @@ namespace OrderBot.Services
                                                 }
                                             };
                                             ReplyMessageHandler("text", selectReply);
-                                        } else
+                                        }
+                                        else
                                         {
                                             var latestActiveEvent = _orderService.QueryLatestActiveEventByGroupId(eventObject.Source.GroupId);
                                             var newRequest = new OrderRequest()
@@ -152,32 +156,36 @@ namespace OrderBot.Services
                                         break;
                                     case "幫助":
                                         var replyMessage = new ReplyMessageRequestDto<TextMessageDto>()
-                                            {
-                                                ReplyToken = eventObject.ReplyToken,
-                                                NotificationDisabled = true,
-                                                Messages = new List<TextMessageDto>
+                                        {
+                                            ReplyToken = eventObject.ReplyToken,
+                                            NotificationDisabled = true,
+                                            Messages = new List<TextMessageDto>
                                                 {
                                                     new TextMessageDto(){Text = $"指令列表：\n- 幫助\n- 開單 <產品:必填> <金額:選填>\n- 結單"}
                                                 }
-                                            };
-                                            ReplyMessageHandler("text", replyMessage);
+                                        };
+                                        ReplyMessageHandler("text", replyMessage);
                                         break;
                                     case "結單":
                                         OrderEvent? finishedOrder;
-                                        if (eventObject.Message?.QuotedMessageId != null) {
-                                            finishedOrder = _orderService.SelectEventFinished(eventObject.Message.QuotedMessageId,eventObject.Timestamp);
+                                        if (eventObject.Message?.QuotedMessageId != null)
+                                        {
+                                            finishedOrder = _orderService.SelectEventFinished(eventObject.Message.QuotedMessageId, eventObject.Timestamp);
 
-                                        } else {
-                                            finishedOrder = _orderService.LatestEventFinished(eventObject.Source.GroupId,eventObject.Timestamp);
                                         }
-                                        if (finishedOrder != null) {
+                                        else
+                                        {
+                                            finishedOrder = _orderService.LatestEventFinished(eventObject.Source.GroupId, eventObject.Timestamp);
+                                        }
+                                        if (finishedOrder != null)
+                                        {
                                             JsonLog.Log(finishedOrder);
                                             var userAndAmount = _orderService.GetGroupedActiveOrderRequestsByQuoteId(finishedOrder.Id);
 
                                             var handler = new UserMentionsHandler();
                                             foreach (var (UserId, TotalAmount) in userAndAmount)
                                             {
-                                                handler.AddMention(UserId,TotalAmount);
+                                                handler.AddMention(UserId, TotalAmount);
                                             }
                                             var finishedReply = new ReplyMessageRequestDto<TextMessageDto>()
                                             {
@@ -192,7 +200,7 @@ namespace OrderBot.Services
                                                     }
                                                 }
                                             };
-                                            
+
                                             ReplyMessageHandler("textV2", finishedReply);
                                         }
 
@@ -201,7 +209,16 @@ namespace OrderBot.Services
                             }
                             break;
                         case WebhookEventTypeEnum.Unsend:
-                            Console.WriteLine($"使用者{eventObject.Source.UserId}在聊天室收回訊息！");
+                            if (eventObject.Unsend?.messageId != null)
+                            {
+                                if (_orderService.GetOrderRequestById(eventObject.Unsend.messageId) != null)
+                                {   
+                                    _orderService.CancelOrderRequestById(eventObject.Unsend.messageId, eventObject.Timestamp);
+                                } else {
+                                    Console.WriteLine($"使用者{eventObject.Source.UserId}在聊天室收回訊息！");
+                                    var cancelledEvent = _orderService.CancelledEventById(eventObject.Unsend.messageId, eventObject.Timestamp);
+                                }
+                            }
                             break;
                         case WebhookEventTypeEnum.Follow:
                             Console.WriteLine($"使用者{eventObject.Source.UserId}將我們新增為好友！");
@@ -217,7 +234,8 @@ namespace OrderBot.Services
                             break;
                     }
 
-                } else
+                }
+                else
                 {
                     var replyMessage = new ReplyMessageRequestDto<TextMessageDto>()
                     {
