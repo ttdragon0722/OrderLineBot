@@ -1,0 +1,6 @@
+@OrderBot_HostAddress = http://localhost:5217
+
+GET {{OrderBot_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
