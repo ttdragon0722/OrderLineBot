@@ -12,7 +12,8 @@ using Microsoft.AspNetCore.Http.Features;
 
 namespace OrderBot.Services
 {
-    public class LineBotService
+    /// 初始化
+    public class LineBotService(DBContext context)
     {
 
         // (將 LineBotController 裡宣告的 ChannelAccessToken & ChannelSecret 移到 LineBotService中)
@@ -21,25 +22,10 @@ namespace OrderBot.Services
         private readonly string channelSecret = "f72cba06bfe3af4c8c1e9e8a409861fc";
         private readonly string replyMessageUri = "https://api.line.me/v2/bot/message/reply";
         private readonly string broadcastMessageUri = "https://api.line.me/v2/bot/message/broadcast";
-        private static HttpClient client = new HttpClient(); // 負責處理HttpRequest
-        private readonly JsonProvider _jsonProvider = new JsonProvider();
-        private readonly CommandHandler _commandHandler = new CommandHandler();
-        private readonly OrderService _orderService;
-
-
-        /// 初始化
-        public LineBotService(DBContext context)
-        {
-            _orderService = new OrderService(context);
-        }
-        public static DateTime ConvertUnixTimestampToDateTime(long unixTimestampMilliseconds)
-        {
-            // Convert the Unix timestamp to DateTime using DateTimeOffset
-            DateTime dateTime = DateTimeOffset.FromUnixTimeMilliseconds(unixTimestampMilliseconds).DateTime;
-
-            // Return the DateTime object
-            return dateTime.ToLocalTime();
-        }
+        private static readonly HttpClient client = new(); // 負責處理HttpRequest
+        private readonly JsonProvider _jsonProvider = new();
+        private readonly CommandHandler _commandHandler = new();
+        private readonly OrderService _orderService = new(context);
 
         public void ReceiveWebhook(WebhookRequestBodyDto requestBody)
         {
@@ -194,7 +180,7 @@ namespace OrderBot.Services
                                                 {
                                                     new QuoteMessageDto(){
                                                         Type =  MessageTypeEnum.TextV2,
-                                                        Text = $"結單：{finishedOrder.Product}\n價格：{finishedOrder.Price}\n{handler.String()}",
+                                                        Text = $"結單：{finishedOrder.Product}\n{(finishedOrder.IsPriceExist() ? $"價格：{finishedOrder.Price}\n" : string.Empty)}\n{handler.String(finishedOrder)}",
                                                         QuoteToken = finishedOrder.QuoteToken,
                                                         Substitution = handler.Mention()
                                                     }
@@ -212,9 +198,11 @@ namespace OrderBot.Services
                             if (eventObject.Unsend?.messageId != null)
                             {
                                 if (_orderService.GetOrderRequestById(eventObject.Unsend.messageId) != null)
-                                {   
+                                {
                                     _orderService.CancelOrderRequestById(eventObject.Unsend.messageId, eventObject.Timestamp);
-                                } else {
+                                }
+                                else
+                                {
                                     Console.WriteLine($"使用者{eventObject.Source.UserId}在聊天室收回訊息！");
                                     var cancelledEvent = _orderService.CancelledEventById(eventObject.Unsend.messageId, eventObject.Timestamp);
                                 }

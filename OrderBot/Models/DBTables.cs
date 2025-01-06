@@ -15,6 +15,13 @@ namespace OrderBot.Models
         public string Status { get; set; }
         public DateTime LastUpdate { get; set; }
 
+        public bool IsPriceExist() {
+            return int.TryParse(Price, out int price) && price > 0;
+        }
+        public int PriceInt() {
+            return int.Parse(Price);
+        }
+
     }
 
     public class OrderRequest

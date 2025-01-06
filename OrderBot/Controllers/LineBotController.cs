@@ -64,6 +64,4 @@ namespace OrderBot.Controllers
         }
 
     }
-
-
 }

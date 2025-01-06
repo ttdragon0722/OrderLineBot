@@ -1,4 +1,5 @@
 ﻿using System.Text;
+using OrderBot.Models;
 
 namespace OrderBot.Providers
 {
@@ -50,7 +51,7 @@ namespace OrderBot.Providers
 
             return result;
         }
-        public string String()
+        public string String(OrderEvent orderEvent)
         {
             if (_users == null || !_users.Any())
             {
@@ -62,7 +63,7 @@ namespace OrderBot.Providers
 
             for (int i = 0; i < _users.Count; i++)
             {
-                builder.Append($"{{user{i}}} x{_users[i].Amount}");
+                builder.Append($"{{user{i}}} x{_users[i].Amount} {(orderEvent.IsPriceExist() ? $"{_users[i].Amount*orderEvent.PriceInt()}" : "")}");
                 if (i < _users.Count - 1)
                 {
                     builder.AppendLine();
